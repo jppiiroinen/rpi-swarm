@@ -1,0 +1,59 @@
+#############################################################################
+# Author(s):
+#     Juhapekka Piiroinen <juhapekka.piiroinen@1337.fi>
+#
+# License: MIT
+#
+# (C) 2019 Juhapekka Piiroinen <juhapekka.piiroinen@1337.fi>
+# 
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom
+# the Software is furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#############################################################################
+---
+- name: "Ensure that we have changed the default password"
+  block:
+    - name: "Generate new password"
+      delegate_to: localhost
+      shell: cat /dev/urandom | tr -dc '{{ password_characters }}' | fold -w {{ password_length }} | head -n 1
+      environment:
+        LC_ALL: C
+      register: new_password
+      failed_when: new_password.stdout == ''
+
+    - name: "Change password"
+      become: yes
+      shell: echo {{ ansible_ssh_user }}:{{ new_password.stdout }} | chpasswd
+      register: password_reset_command
+      failed_when:
+        - "password_reset_command.rc != 0"
+
+    - name: "Store the new password"
+      delegate_to: localhost
+      block:
+        - shell: mkdir -p host_vars/{{ inventory_hostname }}
+        - shell: ansible-vault encrypt_string '{{ new_password.stdout }}' --name 'become_pass'
+          register: become_pass_value
+        - shell: ansible-vault encrypt_string '{{ new_password.stdout }}' --name 'ansible_ssh_password'
+          register: ansible_ssh_password_value
+        - copy:
+            dest: host_vars/{{ inventory_hostname }}/become_pass
+            content: "{{ become_pass_value.stdout }}"
+        - copy:
+            dest: host_vars/{{ inventory_hostname }}/ansible_ssh_password
+            content: "{{ansible_ssh_password_value.stdout }}"
+    - meta: reset_connection
+  when: (change_password is defined and change_password) or ansible_ssh_password == 'raspberry'

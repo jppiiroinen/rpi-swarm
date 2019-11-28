@@ -1,0 +1,127 @@
+#############################################################################
+# Author(s):
+#     Juhapekka Piiroinen <juhapekka.piiroinen@1337.fi>
+#
+# License: MIT
+#
+# (C) 2019 Juhapekka Piiroinen <juhapekka.piiroinen@1337.fi>
+# 
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom
+# the Software is furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#############################################################################
+---
+- name: "Setup master node"
+  block:
+    - name: "Create self-signed certificate"
+      block:
+        - shell: |
+            mkdir -p /certs /rootcerts
+            chown pi:pi /certs
+            chown pi:pi /rootcerts
+          become: yes
+
+        - name: Generate RootCA
+          block:
+            - openssl_privatekey:
+                path: /rootcerts/rootca.pem
+
+            - openssl_csr:
+                path: /rootcerts/rootca.csr
+                privatekey_path: /rootcerts/rootca.pem
+                country_name: FI
+                organization_name: Juhapekka Piiroinen
+                email_address: jp@1337.fi
+
+            - openssl_certificate:
+                path: /rootcerts/rootca.crt
+                csr_path: /rootcerts/rootca.csr
+                privatekey_path: /rootcerts/rootca.pem
+                provider: selfsigned
+
+        # Generate a new certificate
+        - name: Generate an OpenSSL private key with the default values (4096 bits, RSA)
+          openssl_privatekey:
+            path: /certs/registry.1337.fi.pem
+
+        # Generate an OpenSSL Certificate Signing Request with Subject information
+        - openssl_csr:
+            path: /certs/registry.1337.fi.csr
+            privatekey_path: /certs/registry.1337.fi.pem
+            country_name: FI
+            organization_name: Juhapekka Piiroinen
+            email_address: jp@1337.fi
+            common_name: registry.1337.fi
+            subject_alt_name: "IP:{{ hostvars['swarm-master']['ansible_host'] }}"
+
+        # Sign the certificate
+        - openssl_certificate:
+            path: /certs/registry.1337.fi.crt
+            privatekey_path: /certs/registry.1337.fi.pem
+            csr_path: /certs/registry.1337.fi.csr
+            ownca_path: /rootcerts/rootca.crt
+            ownca_privatekey_path: /rootcerts/rootca.pem
+            provider: ownca
+
+        - shell: |
+            ln -s /certs/registry.1337.fi.crt /etc/ssl/certs/registry.1337.fi.crt
+            ln -s /rootcerts/rootca.crt /etc/ssl/certs/rootca.crt
+            update-ca-certificates
+          become: yes
+        
+        - template:
+            src: daemon.json
+            dest: /etc/docker/daemon.json
+          become: yes
+        
+        - shell: systemctl reload docker
+          become: yes
+
+    - name: "Start a docker registry"
+      block:
+        - docker_swarm_service:
+            name: registry
+            state: absent
+
+        - docker_swarm_service:
+            name: registry
+            image: registry:2
+            publish:
+              - published_port: 5000
+                target_port: 5000
+                protocol: tcp
+                mode: host
+            mounts:
+              - source: /certs/
+                target: /certs/
+                type: bind
+            constraints:
+              - node.role == manager
+            env:
+              REGISTRY_HTTP_TLS_CERTIFICATE: /certs/registry.1337.fi.crt
+              REGISTRY_HTTP_TLS_KEY: /certs/registry.1337.fi.pem
+            restart_policy: any
+  when: inventory_hostname in groups['swarm-master']
+
+- name: "Setup worker nodes"
+  block:
+    - template:
+        src: daemon.json
+        dest: /etc/docker/daemon.json
+      become: yes
+    - shell: systemctl reload docker
+      become: yes
+  when: "'swarm-worker' in groups and (inventory_hostname in groups['swarm-worker'])"

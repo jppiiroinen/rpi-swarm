@@ -1,0 +1,81 @@
+#############################################################################
+# Author(s):
+#     Juhapekka Piiroinen <juhapekka.piiroinen@1337.fi>
+#
+# License: MIT
+#
+# (C) 2019 Juhapekka Piiroinen <juhapekka.piiroinen@1337.fi>
+# 
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom
+# the Software is furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#############################################################################
+---
+- name: "Test if docker is installed"
+  shell: docker info
+  register: is_docker_installed
+  ignore_errors: yes
+
+- name: "Install docker"
+  block:
+    - name: "Install dependencies"
+      apt:
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - software-properties-common
+          - python-jsondiff
+          - python-yaml
+        update_cache: yes
+      become: yes
+
+    - name: "Install"
+      block:
+        - shell: mkdir -p /etc/apt/sources.list.d && touch /etc/apt/sources.list.d/docker.list
+        - template:
+            src: docker-gpg
+            dest: /tmp/docker-gpg
+        - shell: apt-key add /tmp/docker-gpg
+        - lineinfile:
+            line: deb https://download.docker.com/linux/raspbian/ stretch stable
+            path: /etc/apt/sources.list.d/docker.list
+        - shell: apt update -y && apt upgrade -y
+        - shell: apt install -y --no-install-recommends docker-ce
+        - shell: usermod -aG docker pi
+        - meta: reset_connection
+      become: yes
+
+    - name: "Enable registry on each node"
+      lineinfile:
+        path: /etc/environment
+        line: DOCKER_OPTS="--insecure-registry={{ docker.registry }}"
+      become: yes
+
+    - name: "Enable and Start"
+      block:
+        - shell: systemctl enable docker
+        - shell: systemctl start docker
+      become: yes
+
+    - name: "Ensure it is running"
+      shell: docker info
+
+    - name: "Install docker python lib"
+      pip:
+        name: docker
+      become: yes
+  when: is_docker_installed is failed
+

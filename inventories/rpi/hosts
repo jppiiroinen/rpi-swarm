@@ -1,0 +1,11 @@
+[rpi]
+swarm-master ansible_host=192.168.1.62
+swarm-worker-1 ansible_host=192.168.1.66
+swarm-worker-2 ansible_host=192.168.1.61
+swarm-worker-3 ansible_host=192.168.1.117
+swarm-worker-4 ansible_host=192.168.1.118
+swarm-worker-5 ansible_host=192.168.1.119
+swarm-worker-6 ansible_host=192.168.1.63
+swarm-worker-7 ansible_host=192.168.1.120
+swarm-worker-8 ansible_host=192.168.1.121
+swarm-worker-9 ansible_host=192.168.1.122

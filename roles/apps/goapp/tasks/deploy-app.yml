@@ -1,0 +1,115 @@
+#############################################################################
+# Author(s):
+#     Juhapekka Piiroinen <juhapekka.piiroinen@1337.fi>
+#
+# License: MIT
+#
+# (C) 2019 Juhapekka Piiroinen <juhapekka.piiroinen@1337.fi>
+# 
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom
+# the Software is furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#############################################################################
+---
+- set_fact:
+    goapp:
+      name: "{{ app.key }}"
+      props: "{{ app.value }}"
+
+- debug:
+    var: app
+
+- debug:
+    var: goapp
+
+- name: Build go project ({{ goapp.name }}) locally
+  delegate_to: localhost
+  shell: |
+    set -e
+    mkdir -p /tmp/{{ goapp.name }}
+    pushd /tmp/{{ goapp.name }}
+      git clone {{ goapp.props.source.url }} -b {{ goapp.props.source.branch }} source
+      pushd source
+        export GOARM=6
+        export GOARCH=arm
+        export CGO_ENABLED=0
+        export GOOS=linux
+        go get -d
+        go build -a -installsuffix cgo -o ../main ./...
+      popd
+    popd
+  args:
+    executable: /bin/bash
+    creates: /tmp/{{ goapp.name }}/main
+
+- name: Copy built code to remote
+  block:
+    - shell: mkdir -p /code/{{ goapp.name }}
+    - shell: chown -R {{ ansible_ssh_user }}:{{ ansible_ssh_user }} /code
+    - copy:
+        src: /tmp/{{ goapp.name }}/main
+        dest: /code/{{ goapp.name }}/main
+    - copy:
+        src: /etc/ssl/cert.pem
+        dest: /code/{{ goapp.name }}/cert.pem
+    - shell: chmod +x /code/{{ goapp.name }}/main
+  become: yes
+
+- name: Build container and publish to registry
+  block:
+    - template:
+        src: Dockerfile
+        dest: /code/{{ goapp.name }}/Dockerfile
+
+    - template:
+        src: docker-compose.yml
+        dest: /code/{{ goapp.name }}/docker-compose.yml
+
+    - shell: |
+        set -e
+        pushd /code/{{ goapp.name }}
+          docker-compose build
+          docker-compose push
+        popd
+      args:
+        executable: /bin/bash
+
+- name: Deploy the code
+  docker_swarm_service:
+    name: "{{ goapp.name }}"
+    image: "{{ docker.registry }}/{{ goapp.name }}"
+    publish: "{{ goapp.props.publish | default(omit) }}"
+    constraints: "{{ goapp.props.constraints | default(omit) }}"
+    restart_policy: "{{ goapp.props.restart_policy | default(omit) }}"
+    replicas: "{{ goapp.props.replicas | default(omit) }}"
+    limits: "{{ goapp.props.limits | default(omit) }}"
+    reservations: "{{ goapp.props.reservations | default(omit) }}"
+    healthcheck: "{{ goapp.props.healthcheck | default(omit) }}"
+    secrets: "{{ goapp.props.secrets | default(omit) }}"
+    rollback_config: "{{ goapp.props.rollback_config | default(omit) }}"
+    update_config: "{{ goapp.props.update_config | default(omit) }}"
+    logging: "{{ goapp.props.logging | default(omit) }}"
+    labels: "{{ goapp.props.labels | default(omit) }}"
+    mounts: "{{ goapp.props.mounts | default(omit) }}"
+    args: "{{ goapp.props.args | default(omit) }}"
+    env_files: "{{ goapp.props.env_files | default(omit) }}"
+    hostname: "{{ goapp.props.hostname | default(omit) }}"
+    env: "{{ goapp.props.env | default(omit) }}"
+    dns: "{{ goapp.props.dns | default(omit) }}"
+    networks: "{{ goapp.props.networks | default(omit) }}"
+
+- set_fact:
+    goapp:

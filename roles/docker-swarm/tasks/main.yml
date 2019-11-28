@@ -1,0 +1,77 @@
+#############################################################################
+# Author(s):
+#     Juhapekka Piiroinen <juhapekka.piiroinen@1337.fi>
+#
+# License: MIT
+#
+# (C) 2019 Juhapekka Piiroinen <juhapekka.piiroinen@1337.fi>
+# 
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom
+# the Software is furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+# ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#############################################################################
+---
+- name: "Initialize docker swarm"
+  block:
+    - name: "Ensure that docker swarm is recreated"
+      docker_swarm:
+        state: absent
+        force: true
+    - name: "Initialize docker swarm"
+      docker_swarm:
+        state: present
+      register: swarm_info
+    - set_fact:
+        swarm_facts_tokens: "{{ swarm_info.swarm_facts.JoinTokens }}"
+  rescue:
+    - meta: end_play
+  when: inventory_hostname in groups['swarm-master']
+
+- set_fact:
+    swarm_master_address: "{{ hostvars['swarm-master']['ansible_host'] }}:2377"
+    swarm_facts_tokens: "{{ hostvars['swarm-master']['swarm_facts_tokens'] }}"
+
+- name: "Join workers to docker swarm"
+  block:
+    - name: "Join worker to docker_swarm at {{ swarm_master_address }}"
+      block:
+        - docker_swarm:
+            state: absent
+        - docker_swarm:
+            state: join
+            advertise_addr: "{{ ansible_host }}"
+            join_token: "{{ swarm_facts_tokens['Worker'] }}"
+            remote_addrs: [ "{{ swarm_master_address }}" ]
+  when: inventory_hostname in groups['swarm-worker']
+
+- name: "Remove obsolete workers"
+  block:
+    - name: "Get list of workers"
+      docker_swarm_info:
+        nodes: yes
+        nodes_filters:
+          role: worker
+      register: swarm_list
+    - debug:
+        var: swarm_list
+    - name: "Remove all workers from swarm"
+      docker_swarm:
+        state: remove
+        node_id: "{{ item.ID }}"
+      with_items: "{{ swarm_list.nodes }}"
+      ignore_errors: yes
+  when: inventory_hostname in groups['swarm-master']
+
