@@ -26,6 +26,14 @@ then install python3: `brew install python@3`.
 ### Change password to a specific node
 `make LIMIT=swarm-worker-2 change_password`
 
+### Install apps
+This target will install all golang apps to the docker swarm.
+`make apps`
+
+### Debug all steps and install apps
+This target will install all golang apps to the docker swarm. It will have very verbose output.
+`make DEBUG=1 apps`
+
 ### Configuration
 See `group_vars/all` directory.
 

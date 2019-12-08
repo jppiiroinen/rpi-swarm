@@ -30,6 +30,10 @@ else
 ANSIBLE_PLAYBOOK:=$(VENV) ansible-playbook --limit=$(LIMIT)
 endif
 
+ifeq ($(DEBUG),1)
+ANSIBLE_PLAYBOOK:=$(ANSIBLE_PLAYBOOK) -vvv
+endif
+
 PATH:=$(PWD)/bin:$(PATH)
 export PATH
 

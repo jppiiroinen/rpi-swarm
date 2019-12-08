@@ -55,32 +55,29 @@
     executable: /bin/bash
     creates: /tmp/{{ goapp.name }}/main
 
-- name: Copy built code to remote
+- name: Ensure that there are SSL CAs inside the container
+  delegate_to: localhost
   block:
-    - shell: mkdir -p /code/{{ goapp.name }}
-    - shell: chown -R {{ ansible_ssh_user }}:{{ ansible_ssh_user }} /code
-    - copy:
-        src: /tmp/{{ goapp.name }}/main
-        dest: /code/{{ goapp.name }}/main
     - copy:
         src: /etc/ssl/cert.pem
-        dest: /code/{{ goapp.name }}/cert.pem
-    - shell: chmod +x /code/{{ goapp.name }}/main
-  become: yes
+        dest: /tmp/{{ goapp.name }}/cert.pem
+    - shell: chmod +x /tmp/{{ goapp.name }}/main
 
 - name: Build container and publish to registry
+  delegate_to: localhost
   block:
     - template:
         src: Dockerfile
-        dest: /code/{{ goapp.name }}/Dockerfile
+        dest: /tmp/{{ goapp.name }}/Dockerfile
 
     - template:
         src: docker-compose.yml
-        dest: /code/{{ goapp.name }}/docker-compose.yml
+        dest: /tmp/{{ goapp.name }}/docker-compose.yml
 
     - shell: |
         set -e
-        pushd /code/{{ goapp.name }}
+        export DOCKER_OPTS="--insecure-registry={{ docker.registry }}"
+        pushd /tmp/{{ goapp.name }}
           docker-compose build
           docker-compose push
         popd

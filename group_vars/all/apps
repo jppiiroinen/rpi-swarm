@@ -35,11 +35,7 @@ apps:
             source:
                 url: git@github.com:jppiiroinen/go-helloworld.git
                 branch: master
-            replicas: 3
+            replicas: 1
             constraints:
                 - node.role != manager
             restart_policy: any
-            limits:
-                cpus: 1
-                memory: 10M
-            hostname: "fuubar"
