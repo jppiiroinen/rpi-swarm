@@ -24,17 +24,18 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #############################################################################
 ---
-- include_role:
-    name: configuration/swap
-- include_role:
-    name: configuration/disks
-- include_role:
-    name: configuration/gpu
-- include_role:
-    name: configuration/network
-- include_role:
-    name: configuration/hostname
-- include_role:
-    name: configuration/timezone
-- include_role:
-    name: configuration/ssh
+# file: roles/configuration/tasks/main.yml
+
+- include_tasks: roles/configuration/swap.yml
+
+- include_tasks: roles/configuration/disks.yml
+
+- include_tasks: roles/configuration/gpu.yml
+
+- include_tasks: roles/configuration/network.yml
+
+- include_tasks: roles/configuration/hostname.yml
+
+- include_tasks: roles/configuration/timezone.yml
+
+- include_tasks: roles/configuration/ssh.yml
