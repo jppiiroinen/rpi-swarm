@@ -1,2 +1,2 @@
 [swarm-master]
-swarm-master ansible_host=192.168.1.62
+swarm-master ansible_host=192.168.1.124

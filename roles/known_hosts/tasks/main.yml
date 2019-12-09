@@ -27,13 +27,13 @@
 - name: "Add hosts to known_hosts list and enable public_key authentication"
   delegate_to: localhost
   block:
-    - shell: ssh-keyscan -H {{ hostvars[inventory_hostname]['inventory_hostname'] }}
+    - shell: ssh-keyscan -H {{ hostvars[inventory_hostname]['ansible_host'] }}
       register: public_key
     - known_hosts:
-        name: "{{ hostvars[inventory_hostname]['inventory_hostname'] }}"
+        name: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
         key: "{{ public_key.stdout }}"
         state: present
     - expect:
-        command: ssh-copy-id {{ hostvars[inventory_hostname]['ansible_ssh_user'] }}@{{ hostvars[inventory_hostname]['inventory_hostname'] }}
+        command: ssh-copy-id {{ hostvars[inventory_hostname]['ansible_ssh_user'] }}@{{ hostvars[inventory_hostname]['ansible_host'] }}
         responses:
           password: "{{ hostvars[inventory_hostname]['ansible_ssh_password'] }}"

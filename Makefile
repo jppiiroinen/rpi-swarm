@@ -41,7 +41,7 @@ LC_ALL:=C
 export LC_ALL
 
 all: venv vault_password
-	$(VENV) ansible-playbook -i inventories playbook.yml
+	$(ANSIBLE_PLAYBOOK) -i inventories playbook.yml
 
 vault_password:
 	@cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1 > vault_password
