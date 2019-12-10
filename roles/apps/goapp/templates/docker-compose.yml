@@ -29,7 +29,7 @@ services:
       build:
         context: .
         dockerfile: Dockerfile
-      image: {{ docker.registry }}/{{ goapp.name }}
+      image: {{ docker.image_registry }}/{{ goapp.name }}:{{ goapp.props.version }}
       container_name: {{ goapp.name }}
       restart: always
       expose:

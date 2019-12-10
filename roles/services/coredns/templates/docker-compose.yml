@@ -29,7 +29,7 @@ services:
       build:
         context: .
         dockerfile: Dockerfile
-      image: {{ docker.registry }}/coredns
+      image: {{ docker.image_registry }}/coredns
       container_name: coredns
       restart: always
       expose:

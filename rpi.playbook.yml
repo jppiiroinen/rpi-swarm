@@ -31,5 +31,3 @@
   roles:
     - configuration
     - common
-    - docker
-    - docker-compose

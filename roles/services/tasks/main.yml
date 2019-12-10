@@ -24,13 +24,6 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #############################################################################
 ---
-- name: "Setup Docker Private Registry"
-  include_role:
-    name: services/docker-registry
-
-- name: "Setup Docker Swarm Visualizer"
-  include_role:
-    name: services/docker-swarm-visualizer
 
 - name: "Setup CoreDNS"
   include_role:

@@ -62,7 +62,7 @@
 
     - docker_swarm_service:
         name: coredns
-        image: "{{ docker.registry }}/coredns"
+        image: "{{ docker.image_registry }}/coredns"
         working_dir: /services/coredns
         publish:
           - published_port: 53

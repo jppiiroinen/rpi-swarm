@@ -30,8 +30,11 @@
 - name: Setup RPI base
   import_playbook: rpi.playbook.yml
 
-- name: Setup Docker Swarm
-  import_playbook: swarm.playbook.yml
+- name: Setup Docker Swarm Master
+  import_playbook: swarm-master.playbook.yml
+
+- name: Setup Docker Swarm Worker
+  import_playbook: swarm-worker.playbook.yml
 
 - name: Setup Services
   import_playbook: services.playbook.yml

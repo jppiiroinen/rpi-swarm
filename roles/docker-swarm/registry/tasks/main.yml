@@ -26,6 +26,9 @@
 ---
 - name: "Setup master node"
   block:
+    - set_fact:
+        swarm_docker_registry_address: "{{ hostvars['swarm-master']['ansible_host'] }}"
+
     - name: "Create self-signed certificate"
       block:
         - shell: |
@@ -81,13 +84,13 @@
             ln -s /rootcerts/rootca.crt /etc/ssl/certs/rootca.crt
             update-ca-certificates
           become: yes
-        
+
         - template:
             src: daemon.json
             dest: /etc/docker/daemon.json
           become: yes
         
-        - shell: systemctl reload docker
+        - shell: systemctl restart docker
           become: yes
 
     - name: "Start a docker registry"
@@ -114,6 +117,22 @@
               REGISTRY_HTTP_TLS_CERTIFICATE: /certs/registry.1337.fi.crt
               REGISTRY_HTTP_TLS_KEY: /certs/registry.1337.fi.pem
             restart_policy: any
+
+        - name: Save registry settings to group_vars
+          delegate_to: localhost
+          block:
+            - shell: ansible-vault encrypt_string '{{ swarm_docker_registry_address }}' --name swarm_docker_registry_address
+              register: swarm_docker_registry_address_value
+            - copy:
+                dest: group_vars/all/swarm_docker_registry_address
+                content: "{{ swarm_docker_registry_address_value.stdout }}"
+
+        - name: "Enable registry on each node"
+          lineinfile:
+            path: /etc/environment
+            line: DOCKER_OPTS="--insecure-registry {{ docker.image_registry }}"
+          become: yes
+
   when: inventory_hostname in groups['swarm-master']
 
 - name: "Setup worker nodes"
@@ -122,6 +141,5 @@
         src: daemon.json
         dest: /etc/docker/daemon.json
       become: yes
-    - shell: systemctl reload docker
+    - shell: systemctl restart docker
       become: yes
-  when: "'swarm-worker' in groups and (inventory_hostname in groups['swarm-worker'])"

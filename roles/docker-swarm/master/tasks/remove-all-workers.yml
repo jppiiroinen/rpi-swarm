@@ -24,40 +24,7 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #############################################################################
 ---
-- name: "Initialize docker swarm"
-  block:
-    - name: "Ensure that docker swarm is recreated"
-      docker_swarm:
-        state: absent
-        force: true
-    - name: "Initialize docker swarm"
-      docker_swarm:
-        state: present
-      register: swarm_info
-    - set_fact:
-        swarm_facts_tokens: "{{ swarm_info.swarm_facts.JoinTokens }}"
-  rescue:
-    - meta: end_play
-  when: inventory_hostname in groups['swarm-master']
-
-- set_fact:
-    swarm_master_address: "{{ hostvars['swarm-master']['ansible_host'] }}:2377"
-    swarm_facts_tokens: "{{ hostvars['swarm-master']['swarm_facts_tokens'] }}"
-
-- name: "Join workers to docker swarm"
-  block:
-    - name: "Join worker to docker_swarm at {{ swarm_master_address }}"
-      block:
-        - docker_swarm:
-            state: absent
-        - docker_swarm:
-            state: join
-            advertise_addr: "{{ ansible_host }}"
-            join_token: "{{ swarm_facts_tokens['Worker'] }}"
-            remote_addrs: [ "{{ swarm_master_address }}" ]
-  when: inventory_hostname in groups['swarm-worker']
-
-- name: "Remove obsolete workers"
+- name: "Remove all workers"
   block:
     - name: "Get list of workers"
       docker_swarm_info:
@@ -73,5 +40,3 @@
         node_id: "{{ item.ID }}"
       with_items: "{{ swarm_list.nodes }}"
       ignore_errors: yes
-  when: inventory_hostname in groups['swarm-master']
-

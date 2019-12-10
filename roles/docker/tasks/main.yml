@@ -58,18 +58,6 @@
         - meta: reset_connection
       become: yes
 
-    - name: "Enable registry on each node"
-      lineinfile:
-        path: /etc/environment
-        line: DOCKER_OPTS="--insecure-registry={{ docker.registry }}"
-      become: yes
-
-    - name: "Enable and Start"
-      block:
-        - shell: systemctl enable docker
-        - shell: systemctl start docker
-      become: yes
-
     - name: "Ensure it is running"
       shell: docker info
 

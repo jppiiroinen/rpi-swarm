@@ -69,7 +69,8 @@ configuration: venv vault_password
 	$(ANSIBLE_PLAYBOOK) -i inventories/rpi configuration.playbook.yml
 
 swarm: venv vault_password
-	$(ANSIBLE_PLAYBOOK) -i inventories/swarm-worker -i inventories/swarm-master swarm.playbook.yml
+	$(ANSIBLE_PLAYBOOK) -i inventories/swarm-master swarm-master.playbook.yml
+	$(ANSIBLE_PLAYBOOK) -i inventories/swarm-worker swarm-worker.playbook.yml
 
 services: venv vault_password
 	$(ANSIBLE_PLAYBOOK) -i inventories/swarm-master services.playbook.yml
@@ -99,6 +100,5 @@ sd: raspbian_lite_latest
 
 venv:
 	python3 -m venv venv
-	
 	$(VENV) pip install -U pip
 	$(VENV) pip install -r requirements.txt	

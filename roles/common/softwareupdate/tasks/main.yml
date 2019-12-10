@@ -33,6 +33,7 @@
         upgrade: dist
         install_recommends: no
       register: updates
+      ignore_errors: yes
     - stat:
         path: /var/run/reboot-required
       register: reboot_required

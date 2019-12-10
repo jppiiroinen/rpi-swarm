@@ -24,8 +24,32 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #############################################################################
 ---
-- hosts: swarm-master, swarm-worker
-  environment:
-    DEBIAN_FRONTEND: noninteractive
-  roles:
-    - docker-swarm
+
+- name: "Join workers to docker swarm"
+  block:
+    - name: "Join worker to docker_swarm at {{ swarm_master_address }}"
+      block:
+        - docker_swarm:
+            state: absent
+
+        - docker_swarm:
+            state: join
+            advertise_addr: "{{ ansible_host }}"
+            join_token: "{{ swarm_join_token_worker }}"
+            remote_addrs: [ "{{ swarm_master_address }}" ]
+
+    - name: "Enable registry on each node"
+      lineinfile:
+        path: /etc/environment
+        line: DOCKER_OPTS="--insecure-registry {{ docker.image_registry }}"
+      become: yes
+
+    - template:
+        src: daemon.json
+        dest: /etc/docker/daemon.json
+      become: yes
+
+    - name: "Reload docker"
+      block:
+        - shell: systemctl reload docker
+      become: yes

@@ -39,6 +39,7 @@
   delegate_to: localhost
   shell: |
     set -e
+    rm -rf /tmp/{{ goapp.name }}
     mkdir -p /tmp/{{ goapp.name }}
     pushd /tmp/{{ goapp.name }}
       git clone {{ goapp.props.source.url }} -b {{ goapp.props.source.branch }} source
@@ -81,13 +82,14 @@
           docker-compose build
           docker-compose push
         popd
+      register: result
       args:
         executable: /bin/bash
 
 - name: Deploy the code
   docker_swarm_service:
     name: "{{ goapp.name }}"
-    image: "{{ docker.registry }}/{{ goapp.name }}"
+    image: "{{ docker.image_registry }}/{{ goapp.name }}"
     publish: "{{ goapp.props.publish | default(omit) }}"
     constraints: "{{ goapp.props.constraints | default(omit) }}"
     restart_policy: "{{ goapp.props.restart_policy | default(omit) }}"

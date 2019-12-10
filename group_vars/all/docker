@@ -25,4 +25,5 @@
 #############################################################################
 ---
 docker:
-    registry: "{{ hostvars['swarm-master']['ansible_host'] }}:5000"
+    image_registry: "{{ swarm_docker_registry_address }}:5000"
+    registry: "https://{{ swarm_docker_registry_address }}:5000"

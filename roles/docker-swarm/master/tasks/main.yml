@@ -24,19 +24,38 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #############################################################################
 ---
-apps:
-    go:
-        minimalgo:
-            publish:
-                - published_port: 8080
-                  target_port: 8080
-                  protocol: tcp
-                  mode: host
-            source:
-                url: git@github.com:jppiiroinen/go-helloworld.git
-                branch: master
-            replicas: 10
-            version: 2
-            constraints:
-                - node.role != manager
-            restart_policy: any
+- name: "Initialize docker swarm"
+  block:
+    - name: "Ensure that docker swarm is recreated"
+      docker_swarm:
+        state: absent
+        force: true
+    - name: "Initialize docker swarm"
+      docker_swarm:
+        state: present
+      register: swarm_info
+    - set_fact:
+        swarm_facts_tokens: "{{ swarm_info.swarm_facts.JoinTokens }}"
+  rescue:
+    - meta: end_play
+
+# Save these values into a file
+- name: Save swarm-master settings to group_vars
+  delegate_to: localhost
+  block:
+    - shell: ansible-vault encrypt_string '{{ swarm_info.swarm_facts.JoinTokens['Worker'] }}' --name swarm_join_token_worker
+      register: swarm_join_token_worker_value
+    - shell: ansible-vault encrypt_string '{{ swarm_info.swarm_facts.JoinTokens['Manager'] }}' --name swarm_join_token_manager
+      register: swarm_join_token_manager_value
+    - shell: ansible-vault encrypt_string '{{ swarm_master_address }}' --name swarm_master_address
+      register: swarm_master_address_value
+    - copy:
+        dest: group_vars/all/swarm_master_address
+        content: "{{ swarm_master_address_value.stdout }}"
+    - copy:
+        dest: group_vars/all/swarm_join_token_worker
+        content: "{{ swarm_join_token_worker_value.stdout }}"
+    - copy:
+        dest: group_vars/all/swarm_join_token_manager
+        content: "{{ swarm_join_token_manager_value.stdout }}"
+

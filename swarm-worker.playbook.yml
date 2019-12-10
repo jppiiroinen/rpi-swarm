@@ -24,19 +24,10 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #############################################################################
 ---
-apps:
-    go:
-        minimalgo:
-            publish:
-                - published_port: 8080
-                  target_port: 8080
-                  protocol: tcp
-                  mode: host
-            source:
-                url: git@github.com:jppiiroinen/go-helloworld.git
-                branch: master
-            replicas: 10
-            version: 2
-            constraints:
-                - node.role != manager
-            restart_policy: any
+- hosts: swarm-worker
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  roles:
+    - docker
+    - docker-compose
+    - docker-swarm/worker
